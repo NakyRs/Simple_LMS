@@ -1,33 +1,55 @@
 # from __future__ import annotations
 from pydantic import BaseModel, EmailStr
 from sqlmodel import Field, Relationship, SQLModel
+from sqlalchemy import DateTime
 import uuid
+from datetime import UTC, datetime
+
+def get_datetime_utc() -> datetime:
+    return datetime.now(UTC)
+
 
 class UserBase(SQLModel):
-    name: str
+    name: str|None= None
     email: EmailStr= Field(index=True, unique=True)
+    is_active: bool = True
+    is_superuser: bool = False
+    is_staff: bool = False
 
 class UserCreate(UserBase):
     password: str
 
+class UserRegister(SQLModel):
+    email: EmailStr = Field(max_length=255)
+    password: str = Field(min_length=8, max_length=128)
+    name: str | None = Field(default=None, max_length=255)
+
 class UserUpdate(SQLModel):
     name: str | None = None
     email: EmailStr | None = None
-    password: str | None = None
+    is_active: bool|None = None
+    is_superuser: bool|None = None
+    is_staff: bool|None = None
+    password: str|None= None
 
-class UserLogin(SQLModel):
-    email: EmailStr
-    password: str
-
+class UpdatePassword(SQLModel):
+    current_password: str = Field(min_length=8, max_length=128)
+    new_password: str = Field(min_length=8, max_length=128)
+    
 class UserResponse(UserBase):
-    id: int
+    id:  uuid.UUID
+    created_at: datetime|None= None
 
 # Database Model
 class User(UserBase, table=True):
     __tablename__ = "users"
 
-    id: int|None = Field(default=None, primary_key=True)
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     hashed_password: str
+    created_at: datetime | None = Field(
+        default_factory=get_datetime_utc,
+        sa_type=DateTime(timezone=True),  # type: ignore
+    )
 
 
 class CourseBase(SQLModel):
@@ -110,3 +132,7 @@ class CoursesResponse(SQLModel):
 
 class Message(SQLModel):
     message: str
+
+class Token(SQLModel):
+    acces_token: str
+    token_type: str= "bearer"

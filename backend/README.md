@@ -1,3 +1,8 @@
+# My Project
+
+## Project Structure
+
+```text
 my-project/
 │
 ├── backend/
@@ -36,3 +41,24 @@ my-project/
 │
 ├── README.md
 └── .gitignore
+```
+
+## Directory Description
+
+### Backend
+
+* **app/** : Main FastAPI application.
+* **routers/** : API endpoint definitions.
+* **models/** : Database models.
+* **schemas/** : Pydantic request/response schemas.
+* **services/** : Business logic.
+* **database.py** : Database configuration.
+* **config.py** : Environment configuration.
+* **main.py** : FastAPI application entry point.
+
+### Frontend
+
+* **src/** : Application source code.
+* **public/** : Static assets.
+* **package.json** : Project dependencies and scripts.
+* **vite.config.js** : Vite configuration.
