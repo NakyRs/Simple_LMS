@@ -20,9 +20,9 @@ class UserCreate(UserBase):
     password: str
 
 class UserRegister(SQLModel):
+    name: str | None = Field(default=None, max_length=255)
     email: EmailStr = Field(max_length=255)
     password: str = Field(min_length=8, max_length=128)
-    name: str | None = Field(default=None, max_length=255)
 
 class UserUpdate(SQLModel):
     name: str | None = None
@@ -51,6 +51,13 @@ class User(UserBase, table=True):
         sa_type=DateTime(timezone=True),  # type: ignore
     )
 
+class UserUpdateMe(SQLModel):
+    name: str | None = None
+    email: EmailStr | None = None
+
+class UpdatePassword(SQLModel):
+    password: str
+    new_password: str
 
 class CourseBase(SQLModel):
     title: str
@@ -134,5 +141,8 @@ class Message(SQLModel):
     message: str
 
 class Token(SQLModel):
-    acces_token: str
+    access_token: str
     token_type: str= "bearer"
+
+class TokenPayload(SQLModel):
+    sub: str|None= None
