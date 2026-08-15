@@ -10,7 +10,7 @@ import uuid
 from app.core.db import engine
 from app.core.config import settings
 from app.core import security
-from app.models import User, TokenPayload
+from app.models import User, TokenPayload, Role
 
 reusable_oauth2 = OAuth2PasswordBearer(
     tokenUrl=f"login/access-token"
@@ -42,3 +42,14 @@ def get_current_superuser(user: CurrentUser):
     if not user.is_superuser:
         return HTTPException(403, "User Doesnt have access")
     return user
+
+def required_role(*roles: Role):
+    def dependency(user: CurrentUser) -> CurrentUser:
+        if user.role not in roles:
+            raise HTTPException(
+                status_code=403,
+                detail="User doesn't have access",
+            )
+        return user
+
+    return dependency

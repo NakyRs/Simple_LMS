@@ -3,7 +3,7 @@ from sqlmodel import select, col
 import uuid
 from typing import Annotated
 
-from ._deps import SessionDep, CurrentUser, get_current_superuser
+from app.routers.deps import SessionDep, CurrentUser, get_current_superuser
 from app.service import user as user_service
 from app.models import User, UserCreate, UserResponse, UserUpdate, UserRegister, UserUpdateMe, UpdatePassword, Message
 from app.core.security import get_password_hash, verify_password
@@ -58,17 +58,6 @@ def delete_user_me(session:SessionDep, current_user:CurrentUser):
     session.delete(current_user)
     session.commit()
     return Message(message= "User deleted Succesfully")
-
-@router.post("/signup", response_model= UserResponse)
-def register_user(session:SessionDep, user_in:UserRegister):
-    user= user_service.get_user_by_email(session, user_in.email)
-    if user:
-        raise HTTPException(409, "Email already exist")
-    user= User.model_validate(user_in, update={"hashed_password": get_password_hash(user_in.password)})
-    session.add(user)
-    session.commit()
-    session.refresh(user)
-    return user
 
 @router.get("/", dependencies= [Depends(get_current_superuser)], response_model=list[UserResponse])
 def get_users(session:SessionDep, skip:int= 0, limit:int= 10):

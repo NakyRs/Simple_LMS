@@ -4,17 +4,21 @@ from sqlmodel import Field, Relationship, SQLModel
 from sqlalchemy import DateTime
 import uuid
 from datetime import UTC, datetime
+from enum import Enum
 
 def get_datetime_utc() -> datetime:
     return datetime.now(UTC)
 
+class Role(str, Enum):
+    STUDENT= "student"
+    INSTRUCTOR= "instructor"
+    ADMIN= "admin"
 
 class UserBase(SQLModel):
     name: str|None= None
     email: EmailStr= Field(index=True, unique=True)
     is_active: bool = True
     is_superuser: bool = False
-    is_staff: bool = False
 
 class UserCreate(UserBase):
     password: str
@@ -29,7 +33,6 @@ class UserUpdate(SQLModel):
     email: EmailStr | None = None
     is_active: bool|None = None
     is_superuser: bool|None = None
-    is_staff: bool|None = None
     password: str|None= None
 
 class UpdatePassword(SQLModel):
@@ -46,6 +49,7 @@ class User(UserBase, table=True):
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     hashed_password: str
+    role: Role= Field(default= Role.STUDENT)
     created_at: datetime | None = Field(
         default_factory=get_datetime_utc,
         sa_type=DateTime(timezone=True),  # type: ignore

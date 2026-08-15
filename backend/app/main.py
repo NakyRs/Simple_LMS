@@ -1,10 +1,10 @@
 from fastapi import FastAPI
-from app.routers import user, login, course, module, lesson
+from app.routers.user import user
+from app.routers.auth import auth
+from app.routers import instructor
 
 app = FastAPI()
 
 app.include_router(user.router)
-app.include_router(login.router)
-app.include_router(course.router)
-app.include_router(module.router)
-app.include_router(lesson.router)
+app.include_router(auth.router)
+app.include_router(instructor.router)
