@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from app.models import Course, Module, Lesson, CourseResponse, CoursesResponse, CourseCreate, CourseDetail, CourseUpdate, Message
+from app.models import User, Course, Section, Lesson, CourseResponse, CoursesResponse, CourseCreate, CourseDetail, CourseUpdate, Message, Role
 from sqlmodel import Session, select
 from sqlalchemy.orm import selectinload
 
@@ -29,7 +29,7 @@ def get_course():
     with Session(engine) as session:
         statement = (
             select(Course)
-            .options(selectinload(Course.modules))
+            .options(selectinload(Course.sections))
         )
 
         courses = session.exec(statement).all()
@@ -47,6 +47,11 @@ def create_course(course_in:CourseCreate):
     # }
     # course_db.append(new_course)
     with Session(engine) as session:
+        user= session.get(User, course_in.instructor_id)
+        if not user:
+            raise HTTPException(404, "User not found")
+        if user.role not in [Role.INSTRUCTOR, Role.ADMIN]:
+            raise HTTPException(409, "Role bukan instructor")
         course = Course.model_validate(course_in)
 
         session.add(course)
@@ -69,8 +74,8 @@ def get_course_detail(id:int):
             select(Course)
             .where(Course.id == id)
             .options(
-                selectinload(Course.modules)
-                .selectinload(Module.lessons)
+                selectinload(Course.sections)
+                .selectinload(Section.lessons)
             )
         )
 

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 
 from app.core.db import engine
-from app.models import Lesson, Module, LessonCreate, LessonUpdate, LessonResponse, Message
+from app.models import Lesson, Section, LessonCreate, LessonUpdate, LessonResponse, Message
 from sqlmodel import select, Session
 from sqlalchemy.orm import selectinload
 
@@ -22,9 +22,9 @@ def get_lessons():
 @router.post("/", response_model= LessonResponse)
 def create_lesson(data: LessonCreate):
     with Session(engine) as session:
-        module= session.get(Module, data.module_id)
-        if not module:
-            raise HTTPException(400, "relasi module tidak ditemukan")
+        section= session.get(Section, data.section_id)
+        if not section:
+            raise HTTPException(400, "relasi section tidak ditemukan")
         lesson= Lesson.model_validate(data)
         session.add(lesson)
         session.commit()
@@ -40,7 +40,7 @@ def get_detail_lesson(id:int):
         )
         lesson= session.exec(statement).first()
         if not lesson:
-            raise HTTPException(400, "Relasi Module tidak ditemukan")
+            raise HTTPException(400, "Relasi Section tidak ditemukan")
         return lesson
 
 @router.put("/{id}", response_model=LessonResponse)
@@ -48,7 +48,7 @@ def update_lesson(id:int, data:LessonUpdate):
     with Session(engine) as session:
         lesson= session.get(Lesson, id)
         if not lesson:
-            raise HTTPException(400, "Relasi module tidak ditemukan")
+            raise HTTPException(400, "Relasi Section tidak ditemukan")
         data_update= data.model_dump(exclude_unset=True)
         lesson.sqlmodel_update(data_update)
         session.add(lesson)

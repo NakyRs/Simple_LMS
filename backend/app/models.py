@@ -1,7 +1,7 @@
 # from __future__ import annotations
 from pydantic import BaseModel, EmailStr
 from sqlmodel import Field, Relationship, SQLModel
-from sqlalchemy import DateTime
+from sqlalchemy import DateTime, UniqueConstraint
 import uuid
 from datetime import UTC, datetime
 from enum import Enum
@@ -13,6 +13,18 @@ class Role(str, Enum):
     STUDENT= "student"
     INSTRUCTOR= "instructor"
     ADMIN= "admin"
+
+class LessonType(str, Enum):
+    QUIZ= "quiz"
+    LINK= "link"
+    RESOURCE= "resource"
+    ASSIGNMENT= "assignment"
+    FORUM= "forum"
+
+class EnrollmentStatus(str, Enum):
+    ACTIVE= "active"
+    DROPPED= "dropped"
+    PAUSED= "paused"
 
 class UserBase(SQLModel):
     name: str|None= None
@@ -34,13 +46,11 @@ class UserUpdate(SQLModel):
     is_active: bool|None = None
     is_superuser: bool|None = None
     password: str|None= None
-
-class UpdatePassword(SQLModel):
-    current_password: str = Field(min_length=8, max_length=128)
-    new_password: str = Field(min_length=8, max_length=128)
+    role: Role|None= None
     
 class UserResponse(UserBase):
     id:  uuid.UUID
+    role: Role
     created_at: datetime|None= None
 
 # Database Model
@@ -54,50 +64,65 @@ class User(UserBase, table=True):
         default_factory=get_datetime_utc,
         sa_type=DateTime(timezone=True),  # type: ignore
     )
+    courses: list["Course"]= Relationship(back_populates= "instructor")
 
 class UserUpdateMe(SQLModel):
     name: str | None = None
     email: EmailStr | None = None
 
 class UpdatePassword(SQLModel):
-    password: str
-    new_password: str
+    password: str= Field(min_length=8, max_length=128)
+    new_password: str= Field(min_length=8, max_length=128)
 
 class CourseBase(SQLModel):
     title: str
-    description: str | None
-    code_course: str
+    description: str | None= None
 
 # Database Model
 class Course(CourseBase, table=True):
     __tablename__ = "course"
     id: int | None = Field(default=None, primary_key=True)
-    modules: list["Module"] = Relationship(back_populates="course", cascade_delete=True)
+    instructor_id: uuid.UUID|None= Field(foreign_key="users.id")
+    instructor: User|None= Relationship(back_populates= "courses")
+    sections: list["Section"] = Relationship(back_populates="course", cascade_delete=True)
 
 class CourseCreate(CourseBase):
-    pass
+    instructor_id: uuid.UUID
 
 class CourseUpdate(SQLModel):
     title: str|None= None
     description: str | None= None
-    code_course: str|None= None
+    instructor_id: uuid.UUID|None= None
 
 
-class ModuleBase(SQLModel):
+class SectionBase(SQLModel):
     title: str
     description: str|None= None
 
-class Module(ModuleBase, table=True):
-    __tablename__ = "module"
+class Section(SectionBase, table=True):
+    __tablename__ = "section"
+    __table_args__ = (
+        UniqueConstraint(
+            "course_id",
+            "sort",
+            name="uq_section_course_sort",
+        ),
+    )    
     id: int|None= Field(default=None, primary_key=True)
     course_id: int = Field(foreign_key="course.id", ondelete="CASCADE")
-    course: Course|None= Relationship(back_populates="modules")
-    lessons: list["Lesson"] = Relationship(back_populates="module", cascade_delete=True)
+    sort: int= Field(gt=0)
+    created_at: datetime | None = Field(
+        default_factory=get_datetime_utc,
+        sa_type=DateTime(timezone=True),
+    )
 
-class ModuleCreate(ModuleBase):
+    course: Course|None= Relationship(back_populates="sections")
+    lessons: list["Lesson"] = Relationship(back_populates="section", cascade_delete=True)
+
+class SectionCreate(SectionBase):
     course_id: int
 
-class ModuleUpdate(SQLModel):
+class SectionUpdate(SQLModel):
     title: str | None = None
     description: str | None = None
 
@@ -108,19 +133,82 @@ class LessonBase(SQLModel):
 
 class Lesson(LessonBase, table=True):
     __tablename__ = "lesson"
+    __table_args__ = (
+        UniqueConstraint(
+            "section_id",
+            "sort",
+            name="uq_lesson_section_sort",
+        ),
+    )
     id: int|None= Field(default=None, primary_key=True)
-    module_id: int = Field(foreign_key="module.id", ondelete="CASCADE")
-    module: Module|None= Relationship(back_populates="lessons")
+    section_id: int = Field(foreign_key="section.id", ondelete="CASCADE")
+    lesson_type: LessonType
+    sort: int= Field(gt=0)
+    created_at: datetime | None = Field(
+        default_factory=get_datetime_utc,
+        sa_type=DateTime(timezone=True),
+    )
+
+    section: Section|None= Relationship(back_populates="lessons")
 
 class LessonCreate(LessonBase):
-    module_id: int
+    section_id: int
+    lesson_type: LessonType
 
 class LessonUpdate(SQLModel):
     title: str | None = None
     content: str | None = None
+    lesson_type: LessonType|None= None
 
+class LessonProgress(SQLModel, table=True):
+    __tablename__ = "lesson_progress"
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id",
+            "lesson_id",
+            name="uq_lesson_progress_user_lesson",
+        ),
+    )
 
-class ModuleResponse(ModuleBase):
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="users.id", ondelete="CASCADE", index=True)
+    lesson_id: int = Field(foreign_key="lesson.id", ondelete="CASCADE", index=True,)
+    completed: bool = False
+    completed_at: datetime | None = Field(
+        default=None,
+        sa_type=DateTime(timezone=True),
+    )
+
+class LessonProgressUpdate(SQLModel):
+    completed: bool
+
+class Enrollment(SQLModel, table=True):
+    __tablename__ = "enrollment"
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id",
+            "course_id",
+            name="uq_enrollment_user_course",
+        ),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="users.id", ondelete="CASCADE", index=True,)
+    course_id: int = Field(foreign_key="course.id", ondelete="CASCADE", index=True,)
+    status: EnrollmentStatus = EnrollmentStatus.ACTIVE
+    enrolled_at: datetime = Field(
+        default_factory=get_datetime_utc,
+        sa_type=DateTime(timezone=True),
+    )
+
+class EnrollmentCreate(SQLModel):
+    user_id: uuid.UUID
+    course_id: int
+
+class EnrollmentUpdate(SQLModel):
+    status: EnrollmentStatus | None = None
+
+class SectionResponse(SectionBase):
     id: int
 
 class LessonResponse(LessonBase):
@@ -130,11 +218,11 @@ class CourseResponse(CourseBase):
     id: int
 
 
-class ModuleDetail(ModuleResponse):
+class SectionDetail(SectionResponse):
     lessons: list[LessonResponse] = Field(default_factory=list)
 
 class CourseDetail(CourseResponse):
-    modules: list[ModuleDetail] = Field(default_factory=list)
+    sections: list[SectionDetail] = Field(default_factory=list)
 
 
 class CoursesResponse(SQLModel):

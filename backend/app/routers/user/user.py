@@ -3,9 +3,9 @@ from sqlmodel import select, col
 import uuid
 from typing import Annotated
 
-from app.routers.deps import SessionDep, CurrentUser, get_current_superuser
+from app.routers.deps import SessionDep, CurrentUser, get_current_superuser, required_role
 from app.service import user as user_service
-from app.models import User, UserCreate, UserResponse, UserUpdate, UserRegister, UserUpdateMe, UpdatePassword, Message
+from app.models import User, UserCreate, UserResponse, UserUpdate, UserRegister, UserUpdateMe, UpdatePassword, Message, Role
 from app.core.security import get_password_hash, verify_password
 
 router = APIRouter(
@@ -78,7 +78,7 @@ def create_user(session:SessionDep, user_in:UserCreate):
     session.refresh(user)
     return user
 
-@router.get("/{id}", response_model= UserResponse)
+@router.get("/{id}", dependencies=[Depends(required_role(Role.ADMIN))], response_model= UserResponse)
 def get_user_detail(session:SessionDep, id:uuid.UUID):
     user= session.get(User, id)
     if not user:
