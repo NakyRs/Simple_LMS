@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 
 from app.core.db import engine
-from app.models import Lesson, Section, LessonCreate, LessonUpdate, LessonResponse, Message
+from app.models import Lesson, Section, LessonCreate, LessonUpdate, LessonResponse, LessonType, Assignment, Message
 from sqlmodel import select, Session
 from sqlalchemy.orm import selectinload
 
@@ -26,6 +26,12 @@ def create_lesson(data: LessonCreate):
         if not section:
             raise HTTPException(400, "relasi section tidak ditemukan")
         lesson= Lesson.model_validate(data)
+
+        if data.lesson_type == LessonType.ASSIGNMENT:
+            if data.deadline is None:
+                raise HTTPException(400, "Deadline wajib diisi untuk assignment")
+            lesson.assignment= Assignment(deadline=data.deadline)
+
         session.add(lesson)
         session.commit()
         session.refresh(lesson)

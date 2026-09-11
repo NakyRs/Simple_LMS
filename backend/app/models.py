@@ -121,6 +121,7 @@ class Section(SectionBase, table=True):
 
 class SectionCreate(SectionBase):
     course_id: int
+    sort: int= Field(gt=0)
 
 class SectionUpdate(SQLModel):
     title: str | None = None
@@ -150,10 +151,13 @@ class Lesson(LessonBase, table=True):
     )
 
     section: Section|None= Relationship(back_populates="lessons")
+    assignment: "Assignment|None"= Relationship(back_populates="lesson")
 
 class LessonCreate(LessonBase):
     section_id: int
     lesson_type: LessonType
+    sort: int= Field(gt=0)
+    deadline: datetime|None= None
 
 class LessonUpdate(SQLModel):
     title: str | None = None
@@ -181,6 +185,54 @@ class LessonProgress(SQLModel, table=True):
 
 class LessonProgressUpdate(SQLModel):
     completed: bool
+
+class Assignment(SQLModel, table=True):
+    __tablename__= "assignment"
+
+    id: int|None= Field(default=None, primary_key=True)
+    lesson_id: int= Field(foreign_key="lesson.id", unique=True)
+    deadline: datetime= Field(sa_type= DateTime(timezone=True))
+
+    lesson: Lesson= Relationship(back_populates="assignment")
+    submissions: list["Submission"]= Relationship(back_populates="assignment")
+
+class Submission(SQLModel, table=True):
+    __tablename__= "submission"
+    __table_args__= (
+        UniqueConstraint(
+            "user_id",
+            "assignment_id",
+            name= "uq_submission_user_assignment"
+        ),
+    )
+    id: int|None= Field(default=None, primary_key=True)
+    user_id: uuid.UUID= Field(foreign_key="users.id", ondelete="CASCADE", index=True)
+    assignment_id: int= Field(foreign_key="assignment.id")
+    created_at: datetime|None= Field(default_factory=get_datetime_utc, sa_type= DateTime(timezone=True))
+
+    assignment: Assignment= Relationship(back_populates="submissions")
+    files: list["SubmissionFile"] = Relationship(
+        back_populates="submission",
+        sa_relationship_kwargs={
+            "cascade": "all, delete-orphan"
+        },
+    )
+
+class SubmissionFile(SQLModel, table=True):
+    __tablename__ = "submission_file"
+
+    id: int | None = Field(default=None, primary_key=True)
+    submission_id: int = Field(foreign_key="submission.id", ondelete="CASCADE", index=True)
+    original_filename: str
+    storage_key: str
+    mime_type: str | None = None
+    size: int | None = None
+    created_at: datetime = Field(
+        default_factory=get_datetime_utc,
+        sa_type=DateTime(timezone=True),
+    )
+
+    submission: Submission = Relationship(back_populates= "files")
 
 class Enrollment(SQLModel, table=True):
     __tablename__ = "enrollment"

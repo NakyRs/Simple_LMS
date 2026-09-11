@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     )
 
     DATABASE_URL: str
-    ACCESS_TOKEN_EXPIRE_MINUTE: int= 60* 28* 8
+    ACCESS_TOKEN_EXPIRE_MINUTE: int= 60* 24* 8
     SECRET_KEY: str = secrets.token_urlsafe(32)
 
 settings = Settings()
