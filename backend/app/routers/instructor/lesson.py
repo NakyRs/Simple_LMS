@@ -1,7 +1,8 @@
 from fastapi import APIRouter, HTTPException
 
 from app.core.db import engine
-from app.models import Lesson, Section, LessonCreate, LessonUpdate, LessonResponse, LessonType, Assignment, Message
+from app.routers.deps import Session, CurrentUser, required_role
+from app.models import Lesson, Section, LessonCreate, LessonUpdate, LessonResponse, LessonType, Assignment, Forum, Message
 from sqlmodel import select, Session
 from sqlalchemy.orm import selectinload
 
@@ -20,7 +21,7 @@ def get_lessons():
         return lesson
 
 @router.post("/", response_model= LessonResponse)
-def create_lesson(data: LessonCreate):
+def create_lesson(data: LessonCreate, current_user:CurrentUser):
     with Session(engine) as session:
         section= session.get(Section, data.section_id)
         if not section:
@@ -30,8 +31,8 @@ def create_lesson(data: LessonCreate):
         if data.lesson_type == LessonType.ASSIGNMENT:
             if data.deadline is None:
                 raise HTTPException(400, "Deadline wajib diisi untuk assignment")
-            lesson.assignment= Assignment(deadline=data.deadline)
-
+            lesson.assignment= Assignment()
+        
         session.add(lesson)
         session.commit()
         session.refresh(lesson)

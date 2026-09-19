@@ -8,7 +8,7 @@ router= APIRouter(
     tags=["Admin-Enrollment"]
     )
 
-@router.get( "/", response_model= list[Enrollment], dependencies= [Depends(required_role(Role.ADMIN))])
+@router.get( "/", response_model= list[Enrollment], dependencies= [Depends(required_role(Role.ADMIN, Role.INSTRUCTOR))])
 def get_enrollments(session: SessionDep):
     enrollments = session.exec(
         select(Enrollment)
@@ -16,7 +16,7 @@ def get_enrollments(session: SessionDep):
 
     return enrollments
 
-@router.get("/{enrollment_id}", response_model= Enrollment, dependencies= [Depends(required_role(Role.ADMIN))])
+@router.get("/{enrollment_id}", response_model= Enrollment, dependencies= [Depends(required_role(Role.ADMIN, Role.INSTRUCTOR))])
 def get_enrollment(session: SessionDep, enrollment_id: int):
     enrollment = session.get(Enrollment, enrollment_id)
 
@@ -25,7 +25,7 @@ def get_enrollment(session: SessionDep, enrollment_id: int):
 
     return enrollment
 
-@router.post("/", dependencies= [Depends(required_role(Role.ADMIN))])
+@router.post("/", dependencies= [Depends(required_role(Role.ADMIN, Role.INSTRUCTOR))])
 def create_enrollment(session:SessionDep, enrollment_in:EnrollmentCreate):
     user = session.get(User, enrollment_in.user_id)
     if not user:
@@ -51,7 +51,7 @@ def create_enrollment(session:SessionDep, enrollment_in:EnrollmentCreate):
 
     return enrollment
 
-@router.patch("/{enrollment_id}", dependencies= [Depends(required_role(Role.ADMIN))])
+@router.patch("/{enrollment_id}", dependencies= [Depends(required_role(Role.ADMIN, Role.INSTRUCTOR))])
 def update_enrollment(session:SessionDep, enrollment_id: int, enrollment_in: EnrollmentUpdate):
     enrollment = session.get(Enrollment, enrollment_id)
 
@@ -68,7 +68,7 @@ def update_enrollment(session:SessionDep, enrollment_id: int, enrollment_in: Enr
 
     return enrollment
 
-@router.delete("/{enrollment_id}", dependencies= [Depends(required_role(Role.ADMIN))], response_model= Message)
+@router.delete("/{enrollment_id}", dependencies= [Depends(required_role(Role.ADMIN, Role.INSTRUCTOR))], response_model= Message)
 def delete_enrollment(session: SessionDep, enrollment_id: int):
     enrollment= session.get(Enrollment, enrollment_id)
 

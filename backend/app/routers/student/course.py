@@ -1,8 +1,9 @@
 from fastapi import APIRouter, HTTPException, Depends
 from sqlmodel import select
+from sqlalchemy.orm import selectinload
 
 from app.routers.deps import SessionDep, CurrentUser, required_role
-from app.models import Role, EnrollmentStatus, Course, Section, Enrollment, Lesson, LessonProgress, LessonProgressUpdate, get_datetime_utc
+from app.models import Role, EnrollmentStatus, Course, CourseDetail, Section, Enrollment, Lesson, LessonProgress, LessonProgressUpdate, get_datetime_utc
 
 router= APIRouter(
     prefix="/course", 
@@ -84,7 +85,7 @@ def update_student_progress(session: SessionDep, current_user: CurrentUser, less
 
     return progress
 
-@router.get("/{course_id}", dependencies=[Depends(required_role(Role.STUDENT))])
+@router.get("/{course_id}", dependencies=[Depends(required_role(Role.STUDENT))], response_model=CourseDetail)
 def get_student_course(session: SessionDep, current_user: CurrentUser, course_id: int):
     statement = (
         select(Course)
@@ -93,6 +94,10 @@ def get_student_course(session: SessionDep, current_user: CurrentUser, course_id
             Course.id == course_id,
             Enrollment.user_id == current_user.id,
             Enrollment.status == EnrollmentStatus.ACTIVE,
+        )
+        .options(
+            selectinload(Course.sections)
+            .selectinload(Section.lessons)
         )
     )
 

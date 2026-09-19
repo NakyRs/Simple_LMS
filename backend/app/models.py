@@ -2,6 +2,7 @@
 from pydantic import BaseModel, EmailStr
 from sqlmodel import Field, Relationship, SQLModel
 from sqlalchemy import DateTime, UniqueConstraint
+from typing import Optional
 import uuid
 from datetime import UTC, datetime
 from enum import Enum
@@ -25,6 +26,10 @@ class EnrollmentStatus(str, Enum):
     ACTIVE= "active"
     DROPPED= "dropped"
     PAUSED= "paused"
+
+class ForumType(str, Enum):
+    TOPIC= "topic"
+    REPLY= "reply"
 
 class UserBase(SQLModel):
     name: str|None= None
@@ -145,13 +150,15 @@ class Lesson(LessonBase, table=True):
     section_id: int = Field(foreign_key="section.id", ondelete="CASCADE")
     lesson_type: LessonType
     sort: int= Field(gt=0)
+    deadline: datetime= Field(sa_type= DateTime(timezone=True))
     created_at: datetime | None = Field(
         default_factory=get_datetime_utc,
         sa_type=DateTime(timezone=True),
     )
 
     section: Section|None= Relationship(back_populates="lessons")
-    assignment: "Assignment|None"= Relationship(back_populates="lesson")
+    assignment: Optional["Assignment"]= Relationship(back_populates="lesson")
+    forum: Optional["Forum"]= Relationship(back_populates="lesson")
 
 class LessonCreate(LessonBase):
     section_id: int
@@ -191,7 +198,6 @@ class Assignment(SQLModel, table=True):
 
     id: int|None= Field(default=None, primary_key=True)
     lesson_id: int= Field(foreign_key="lesson.id", unique=True)
-    deadline: datetime= Field(sa_type= DateTime(timezone=True))
 
     lesson: Lesson= Relationship(back_populates="assignment")
     submissions: list["Submission"]= Relationship(back_populates="assignment")
@@ -208,7 +214,10 @@ class Submission(SQLModel, table=True):
     id: int|None= Field(default=None, primary_key=True)
     user_id: uuid.UUID= Field(foreign_key="users.id", ondelete="CASCADE", index=True)
     assignment_id: int= Field(foreign_key="assignment.id")
-    created_at: datetime|None= Field(default_factory=get_datetime_utc, sa_type= DateTime(timezone=True))
+    created_at: datetime|None= Field(
+        default_factory=get_datetime_utc,
+        sa_type= DateTime(timezone=True),
+    )
 
     assignment: Assignment= Relationship(back_populates="submissions")
     files: list["SubmissionFile"] = Relationship(
@@ -233,6 +242,51 @@ class SubmissionFile(SQLModel, table=True):
     )
 
     submission: Submission = Relationship(back_populates= "files")
+
+class Forum(SQLModel, table=True):
+    __tablename__= "forum"
+
+    id: int|None= Field(default=None, primary_key=True)
+    lesson_id: int|None= Field(default=None, foreign_key="lesson.id", index=True)
+    parent_id: int|None= Field(default=None, foreign_key="forum.id")
+    user_id: uuid.UUID= Field(foreign_key="users.id", ondelete="CASCADE", index=True)
+    title: str|None= Field(default=None)
+    content: str|None= Field(default=None)
+    reply_level: int= Field(default=0, ge=0, le=3)
+    post_type: ForumType
+    created_at: datetime|None= Field(
+        default_factory= get_datetime_utc,
+        sa_type= DateTime(timezone=True)
+    )
+
+    lesson: Lesson= Relationship(back_populates="forum")
+    parent: Optional["Forum"] = Relationship(
+        back_populates="replies",
+        sa_relationship_kwargs={
+            "remote_side": "Forum.id"
+        }
+    )
+
+    replies: list["Forum"] = Relationship(
+        back_populates="parent"
+    )
+
+class ForumCreate(SQLModel):
+    lesson_id: int|None
+    parent_id: int|None
+    title: str|None
+    content: str|None
+    post_type: ForumType
+
+class ForumResponse(SQLModel):
+    id: int
+    user_id: uuid.UUID
+    title: str | None
+    content: str | None
+    reply_level: int
+    post_type: ForumType
+    created_at: datetime | None
+    replies: list["ForumResponse"] = []
 
 class Enrollment(SQLModel, table=True):
     __tablename__ = "enrollment"
@@ -265,6 +319,7 @@ class SectionResponse(SectionBase):
 
 class LessonResponse(LessonBase):
     id: int
+    lesson_type: LessonType
 
 class CourseResponse(CourseBase):
     id: int

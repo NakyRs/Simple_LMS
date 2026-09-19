@@ -13,7 +13,7 @@ from app.models import Role, EnrollmentStatus, Assignment, Submission, Submissio
 
 router = APIRouter(
     prefix="/assignment",
-    tags=["Assignment"],
+    tags=["Student-Assignment"],
 )
 
 BASE_DIR= Path(__file__).resolve().parent.parent.parent
@@ -59,22 +59,30 @@ def get_assignment(
     ).first()
 
     return {
-        "lesson_id": assignment.lesson_id,
-        "deadline": assignment.deadline,
+        "lesson_id": lesson_id,
+        "title": assignment.lesson.title,
+        "content": assignment.lesson.content,
+        "deadline": assignment.lesson.deadline,
         "assignment": {
             "id": submission.id,
-            "files": [file.id for file in submission.files]
-        }
+            "files": [file.id for file in submission.files],
+            "created_at": submission.created_at
+        } if submission else None
     }
 
-@router.post("/{assignment_id}/submission", dependencies= Depends(required_role(Role.STUDENT)))
+@router.post("/{lesson_id}/submission", dependencies= [Depends(required_role(Role.STUDENT))])
 async def create_submission(
     session: SessionDep,
     current_user: CurrentUser,
-    assignment_id: int,
+    lesson_id: int,
     files: list[UploadFile] = File(...),
 ):
-    assignment = session.get(Assignment, assignment_id)
+    assignment = session.exec(
+        select(Assignment)
+        .where(
+            Assignment.lesson_id == lesson_id,
+        )
+    ).first()
     if not assignment:
         raise HTTPException(404, "Assignment not found")
 
@@ -90,9 +98,19 @@ async def create_submission(
     if not enrollment:
         raise HTTPException(403, "You are not enrolled in this course")
     
+    sub_exist= session.exec(
+        select(Submission)
+        .where(
+            Submission.user_id == current_user.id,
+            Submission.assignment_id == assignment.id
+        )
+    ).first()
+    if sub_exist:
+        raise HTTPException(400, "Submission already exist")
+    
     submission = Submission(
         user_id= current_user.id,
-        assignment_id= assignment_id,
+        assignment_id= assignment.id,
     )
 
     session.add(submission)
