@@ -1,31 +1,26 @@
-# My Project
-
+# Backend
 ## Project Structure
 
 ```text
-my-project/
+root-project/
 │
 ├── backend/
 │   ├── app/
+│   │   ├── core/
+│   │   │   ├── config.py
+│   │   │   ├── db.py
+│   │   │   └── security.py
+│   │   │
 │   │   ├── routers/
-│   │   │   ├── auth.py
-│   │   │   ├── users.py
-│   │   │   └── products.py
+│   │   │   ├── auth/
+│   │   │   ├── admin/
+│   │   │   ├── instructor/
+│   │   │   └── student/
 │   │   │
-│   │   ├── models/
-│   │   │   ├── user.py
-│   │   │   └── product.py
+│   │   ├── service/
 │   │   │
-│   │   ├── schemas/
-│   │   │   ├── user.py
-│   │   │   └── product.py
-│   │   │
-│   │   ├── services/
-│   │   │   ├── user_service.py
-│   │   │   └── product_service.py
-│   │   │
-│   │   ├── database.py
-│   │   ├── config.py
+│   │   ├── init_data.py
+│   │   ├── models.py
 │   │   └── main.py
 │   │
 │   ├── venv/
@@ -48,12 +43,11 @@ my-project/
 ### Backend
 
 * **app/** : Main FastAPI application.
+* **core/** : Database & Environment configuration
 * **routers/** : API endpoint definitions.
-* **models/** : Database models.
-* **schemas/** : Pydantic request/response schemas.
 * **services/** : Business logic.
-* **database.py** : Database configuration.
-* **config.py** : Environment configuration.
+* **init_data.py** : Initial data.
+* **models.py** : Database models.
 * **main.py** : FastAPI application entry point.
 
 ### Frontend

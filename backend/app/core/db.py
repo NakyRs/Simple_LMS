@@ -6,7 +6,7 @@ from app.models import User, UserCreate
 
 connect_args = {}
 
-if settings.DATABASE_URL.startswith("sqlite"):
+if settings.DATABASE_URL.drivername.startswith("sqlite"):
     connect_args["check_same_thread"] = False
 
 engine = create_engine(

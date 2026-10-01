@@ -18,8 +18,6 @@ DUMMY_HASH = "$argon2id$v=19$m=65536,t=3,p=4$MjQyZWE1MzBjYjJlZTI0Yw$YTU4NGM5ZTZm
 
 @router.post("/login/access-token")
 def login_access_token(session:SessionDep, form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
-    # statement= (select(User).where(User.email==form_data.username))
-    # user= session.exec(statement).first()
     user= user_service.get_user_by_email(session, form_data.username)
     if not user:
         verify_password(form_data.password, DUMMY_HASH)

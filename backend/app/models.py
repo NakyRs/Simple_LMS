@@ -92,12 +92,11 @@ class Course(CourseBase, table=True):
     sections: list["Section"] = Relationship(back_populates="course", cascade_delete=True)
 
 class CourseCreate(CourseBase):
-    instructor_id: uuid.UUID
+    pass
 
 class CourseUpdate(SQLModel):
     title: str|None= None
     description: str | None= None
-    instructor_id: uuid.UUID|None= None
 
 
 class SectionBase(SQLModel):
@@ -106,16 +105,8 @@ class SectionBase(SQLModel):
 
 class Section(SectionBase, table=True):
     __tablename__ = "section"
-    __table_args__ = (
-        UniqueConstraint(
-            "course_id",
-            "sort",
-            name="uq_section_course_sort",
-        ),
-    )    
     id: int|None= Field(default=None, primary_key=True)
     course_id: int = Field(foreign_key="course.id", ondelete="CASCADE")
-    sort: int= Field(gt=0)
     created_at: datetime | None = Field(
         default_factory=get_datetime_utc,
         sa_type=DateTime(timezone=True),
@@ -126,7 +117,6 @@ class Section(SectionBase, table=True):
 
 class SectionCreate(SectionBase):
     course_id: int
-    sort: int= Field(gt=0)
 
 class SectionUpdate(SQLModel):
     title: str | None = None
@@ -139,17 +129,9 @@ class LessonBase(SQLModel):
 
 class Lesson(LessonBase, table=True):
     __tablename__ = "lesson"
-    __table_args__ = (
-        UniqueConstraint(
-            "section_id",
-            "sort",
-            name="uq_lesson_section_sort",
-        ),
-    )
     id: int|None= Field(default=None, primary_key=True)
     section_id: int = Field(foreign_key="section.id", ondelete="CASCADE")
     lesson_type: LessonType
-    sort: int= Field(gt=0)
     deadline: datetime= Field(sa_type= DateTime(timezone=True))
     created_at: datetime | None = Field(
         default_factory=get_datetime_utc,
@@ -163,7 +145,6 @@ class Lesson(LessonBase, table=True):
 class LessonCreate(LessonBase):
     section_id: int
     lesson_type: LessonType
-    sort: int= Field(gt=0)
     deadline: datetime|None= None
 
 class LessonUpdate(SQLModel):

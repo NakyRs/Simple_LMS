@@ -19,7 +19,7 @@ from app.core.config import settings
 
 config.set_main_option(
     "sqlalchemy.url",
-    settings.DATABASE_URL,
+    str(settings.DATABASE_URL),
 )
 # add your model's MetaData object here
 # for 'autogenerate' support

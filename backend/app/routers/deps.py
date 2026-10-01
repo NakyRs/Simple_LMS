@@ -45,7 +45,7 @@ def get_current_superuser(user: CurrentUser):
 
 def required_role(*roles: Role):
     def dependency(user: CurrentUser) -> CurrentUser:
-        if user.role not in roles:
+        if user.role not in roles and not user.is_superuser:
             raise HTTPException(
                 status_code=403,
                 detail="User doesn't have access",

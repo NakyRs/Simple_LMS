@@ -1,8 +1,8 @@
-"""add enrollment & lesson progress
+"""init
 
-Revision ID: 2231bda14af5
+Revision ID: 52048605237b
 Revises: 
-Create Date: 2026-08-17 22:56:41.313795
+Create Date: 2026-10-01 23:31:54.273469
 
 """
 from typing import Sequence, Union
@@ -13,7 +13,7 @@ import sqlmodel
 
 
 # revision identifiers, used by Alembic.
-revision: str = '2231bda14af5'
+revision: str = '52048605237b'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -60,11 +60,9 @@ def upgrade() -> None:
     sa.Column('description', sqlmodel.sql.sqltypes.AutoString(), nullable=True),
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('course_id', sa.Integer(), nullable=False),
-    sa.Column('sort', sa.Integer(), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), nullable=True),
     sa.ForeignKeyConstraint(['course_id'], ['course.id'], ondelete='CASCADE'),
-    sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('course_id', 'sort', name='uq_section_course_sort')
+    sa.PrimaryKeyConstraint('id')
     )
     op.create_table('lesson',
     sa.Column('title', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
@@ -72,12 +70,35 @@ def upgrade() -> None:
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('section_id', sa.Integer(), nullable=False),
     sa.Column('lesson_type', sa.Enum('QUIZ', 'LINK', 'RESOURCE', 'ASSIGNMENT', 'FORUM', name='lessontype'), nullable=False),
-    sa.Column('sort', sa.Integer(), nullable=False),
+    sa.Column('deadline', sa.DateTime(timezone=True), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), nullable=True),
     sa.ForeignKeyConstraint(['section_id'], ['section.id'], ondelete='CASCADE'),
-    sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('section_id', 'sort', name='uq_lesson_section_sort')
+    sa.PrimaryKeyConstraint('id')
     )
+    op.create_table('assignment',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('lesson_id', sa.Integer(), nullable=False),
+    sa.ForeignKeyConstraint(['lesson_id'], ['lesson.id'], ),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('lesson_id')
+    )
+    op.create_table('forum',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('lesson_id', sa.Integer(), nullable=True),
+    sa.Column('parent_id', sa.Integer(), nullable=True),
+    sa.Column('user_id', sa.Uuid(), nullable=False),
+    sa.Column('title', sqlmodel.sql.sqltypes.AutoString(), nullable=True),
+    sa.Column('content', sqlmodel.sql.sqltypes.AutoString(), nullable=True),
+    sa.Column('reply_level', sa.Integer(), nullable=False),
+    sa.Column('post_type', sa.Enum('TOPIC', 'REPLY', name='forumtype'), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), nullable=True),
+    sa.ForeignKeyConstraint(['lesson_id'], ['lesson.id'], ),
+    sa.ForeignKeyConstraint(['parent_id'], ['forum.id'], ),
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index(op.f('ix_forum_lesson_id'), 'forum', ['lesson_id'], unique=False)
+    op.create_index(op.f('ix_forum_user_id'), 'forum', ['user_id'], unique=False)
     op.create_table('lesson_progress',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('user_id', sa.Uuid(), nullable=False),
@@ -91,15 +112,46 @@ def upgrade() -> None:
     )
     op.create_index(op.f('ix_lesson_progress_lesson_id'), 'lesson_progress', ['lesson_id'], unique=False)
     op.create_index(op.f('ix_lesson_progress_user_id'), 'lesson_progress', ['user_id'], unique=False)
+    op.create_table('submission',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('user_id', sa.Uuid(), nullable=False),
+    sa.Column('assignment_id', sa.Integer(), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), nullable=True),
+    sa.ForeignKeyConstraint(['assignment_id'], ['assignment.id'], ),
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('user_id', 'assignment_id', name='uq_submission_user_assignment')
+    )
+    op.create_index(op.f('ix_submission_user_id'), 'submission', ['user_id'], unique=False)
+    op.create_table('submission_file',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('submission_id', sa.Integer(), nullable=False),
+    sa.Column('original_filename', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
+    sa.Column('storage_key', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
+    sa.Column('mime_type', sqlmodel.sql.sqltypes.AutoString(), nullable=True),
+    sa.Column('size', sa.Integer(), nullable=True),
+    sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
+    sa.ForeignKeyConstraint(['submission_id'], ['submission.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index(op.f('ix_submission_file_submission_id'), 'submission_file', ['submission_id'], unique=False)
     # ### end Alembic commands ###
 
 
 def downgrade() -> None:
     """Downgrade schema."""
     # ### commands auto generated by Alembic - please adjust! ###
+    op.drop_index(op.f('ix_submission_file_submission_id'), table_name='submission_file')
+    op.drop_table('submission_file')
+    op.drop_index(op.f('ix_submission_user_id'), table_name='submission')
+    op.drop_table('submission')
     op.drop_index(op.f('ix_lesson_progress_user_id'), table_name='lesson_progress')
     op.drop_index(op.f('ix_lesson_progress_lesson_id'), table_name='lesson_progress')
     op.drop_table('lesson_progress')
+    op.drop_index(op.f('ix_forum_user_id'), table_name='forum')
+    op.drop_index(op.f('ix_forum_lesson_id'), table_name='forum')
+    op.drop_table('forum')
+    op.drop_table('assignment')
     op.drop_table('lesson')
     op.drop_table('section')
     op.drop_index(op.f('ix_enrollment_user_id'), table_name='enrollment')
